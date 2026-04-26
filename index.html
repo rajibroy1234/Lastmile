@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LastMile — India Crisis Navigator</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
+<style>
+:root {
+  --bg:#080c10; --panel:#0d1117; --panel2:#111820; --border:#1a2535;
+  --accent:#ff6b00; --accent2:#ff9a3c; --danger:#ff2d2d;
+  --warning:#ffcc00; --safe:#00e676; --text:#dce8f0; --text-dim:#4a6a8a;
+  --mono:'Share Tech Mono',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Rajdhani',sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;display:flex;flex-direction:column;}
+
+/* HEADER */
+header{background:var(--panel);border-bottom:2px solid var(--accent);padding:8px 16px;display:flex;align-items:center;justify-content:space-between;z-index:1000;flex-shrink:0;}
+.logo{display:flex;align-items:center;gap:10px;}
+.logo-icon{width:36px;height:36px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;}
+.logo-text{font-size:22px;font-weight:700;letter-spacing:2px;}
+.logo-text span{color:var(--accent);}
+.logo-sub{font-size:11px;color:var(--text-dim);font-family:var(--mono);letter-spacing:1px;}
+.header-right{display:flex;align-items:center;gap:14px;}
+.live-badge{display:flex;align-items:center;gap:6px;background:rgba(255,45,45,0.15);border:1px solid var(--danger);border-radius:4px;padding:4px 10px;font-size:12px;font-family:var(--mono);color:var(--danger);}
+.live-dot{width:7px;height:7px;background:var(--danger);border-radius:50%;animation:blink 1s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
+.stat-chip{font-family:var(--mono);font-size:12px;color:var(--text-dim);}
+.stat-chip span{color:var(--accent2);font-weight:700;}
+.api-status{font-family:var(--mono);font-size:11px;padding:3px 8px;border-radius:3px;border:1px solid var(--border);}
+.api-status.online{border-color:var(--safe);color:var(--safe);background:rgba(0,230,118,0.1);}
+.api-status.offline{border-color:var(--danger);color:var(--danger);background:rgba(255,45,45,0.1);}
+.offline-btn{background:rgba(0,230,118,0.1);border:1px solid var(--safe);color:var(--safe);padding:5px 12px;border-radius:4px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:600;cursor:pointer;letter-spacing:1px;transition:all .2s;}
+.offline-btn:hover{background:rgba(0,230,118,0.2);}
+.offline-banner{display:none;background:rgba(0,230,118,0.1);border-bottom:1px solid var(--safe);color:var(--safe);text-align:center;padding:6px;font-size:13px;font-weight:600;letter-spacing:1px;flex-shrink:0;}
+.offline-banner.show{display:block;}
+
+.main{display:flex;flex:1;overflow:hidden;}
+
+/* LEFT PANEL */
+.left-panel{width:300px;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;}
+.panel-tabs{display:flex;border-bottom:1px solid var(--border);}
+.tab{flex:1;padding:10px;text-align:center;font-size:12px;font-weight:600;letter-spacing:1px;cursor:pointer;color:var(--text-dim);transition:all .2s;border-bottom:2px solid transparent;}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);background:rgba(255,107,0,0.05);}
+.tab:hover:not(.active){color:var(--text);}
+.panel-content{flex:1;overflow-y:auto;padding:12px;}
+.panel-content::-webkit-scrollbar{width:4px;}
+.panel-content::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+/* REPORT CARDS */
+.report-card{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;cursor:pointer;transition:all .2s;border-left:3px solid transparent;animation:slideIn .3s ease;}
+@keyframes slideIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+.report-card:hover{border-color:var(--accent);background:rgba(255,107,0,0.05);}
+.report-card.danger{border-left-color:var(--danger);}
+.report-card.warning{border-left-color:var(--warning);}
+.report-card.safe{border-left-color:var(--safe);}
+.report-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;}
+.report-type{font-size:13px;font-weight:700;letter-spacing:0.5px;}
+.report-type.danger{color:var(--danger)}.report-type.warning{color:var(--warning)}.report-type.safe{color:var(--safe)}
+.report-time{font-size:11px;color:var(--text-dim);font-family:var(--mono);}
+.report-area{font-size:14px;font-weight:600;margin-bottom:2px;}
+.report-desc{font-size:12px;color:var(--text-dim);line-height:1.4;}
+.severity-bar{height:3px;background:var(--border);border-radius:2px;margin-top:6px;}
+.severity-fill{height:100%;border-radius:2px;}
+.source-badge{display:inline-block;font-size:10px;font-family:var(--mono);padding:1px 5px;border-radius:2px;margin-top:4px;}
+.source-badge.sms{background:rgba(0,150,255,0.15);color:#00aaff;border:1px solid rgba(0,150,255,0.3);}
+.source-badge.app{background:rgba(255,107,0,0.15);color:var(--accent2);border:1px solid rgba(255,107,0,0.3);}
+
+/* ROUTE FORM */
+.route-form{display:flex;flex-direction:column;gap:10px;}
+.input-group{display:flex;flex-direction:column;gap:4px;}
+.input-label{font-size:11px;color:var(--text-dim);font-family:var(--mono);letter-spacing:1px;}
+.input-field{background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:8px 12px;color:var(--text);font-family:'Rajdhani',sans-serif;font-size:14px;outline:none;transition:border-color .2s;width:100%;}
+.input-field:focus{border-color:var(--accent);}
+.input-field option{background:var(--panel2);}
+.route-btn{background:var(--accent);color:#000;border:none;border-radius:6px;padding:10px;font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;letter-spacing:1px;cursor:pointer;transition:all .2s;}
+.route-btn:hover{background:var(--accent2);transform:translateY(-1px);}
+.route-result{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:12px;display:none;}
+.route-result.show{display:block;}
+.route-result h4{color:var(--safe);font-size:14px;margin-bottom:8px;letter-spacing:1px;}
+.route-step{display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;font-size:13px;}
+.step-num{width:20px;height:20px;background:var(--accent);color:#000;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;}
+.route-meta{display:flex;gap:12px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);}
+.route-meta-item{font-size:12px;color:var(--text-dim);}
+.route-meta-item span{color:var(--safe);font-weight:700;}
+
+/* SHELTER */
+.shelter-card{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;cursor:pointer;transition:all .2s;}
+.shelter-card:hover{border-color:var(--accent);}
+.shelter-name{font-size:14px;font-weight:700;margin-bottom:4px;}
+.shelter-meta{display:flex;gap:6px;flex-wrap:wrap;}
+.shelter-tag{font-size:11px;padding:2px 8px;border-radius:3px;font-family:var(--mono);}
+.shelter-tag.open{background:rgba(0,230,118,0.15);color:var(--safe);}
+.shelter-tag.filling{background:rgba(255,204,0,0.15);color:var(--warning);}
+.shelter-tag.full{background:rgba(255,45,45,0.15);color:var(--danger);}
+.shelter-tag.cap{background:rgba(255,107,0,0.15);color:var(--accent2);}
+.shelter-tag.loc{background:rgba(255,255,255,0.05);color:var(--text-dim);}
+.capacity-bar{height:4px;background:var(--border);border-radius:2px;margin-top:6px;}
+.capacity-fill{height:100%;border-radius:2px;}
+
+/* MAP */
+#map{flex:1;position:relative;z-index:1;}
+.leaflet-container{background:#080c10 !important;}
+.map-legend{position:absolute;bottom:30px;right:10px;background:rgba(13,17,23,0.92);border:1px solid var(--border);border-radius:8px;padding:10px 14px;z-index:500;font-size:12px;backdrop-filter:blur(4px);}
+.map-legend h5{color:var(--text-dim);font-family:var(--mono);font-size:10px;letter-spacing:1px;margin-bottom:6px;}
+.legend-item{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
+.legend-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;}
+.map-refresh{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:500;background:rgba(13,17,23,0.9);border:1px solid var(--border);border-radius:6px;padding:5px 12px;font-size:11px;font-family:var(--mono);color:var(--text-dim);backdrop-filter:blur(4px);}
+
+/* RIGHT PANEL */
+.right-panel{width:260px;background:var(--panel);border-left:1px solid var(--border);display:flex;flex-direction:column;padding:12px;gap:12px;overflow-y:auto;flex-shrink:0;}
+.right-panel::-webkit-scrollbar{width:4px;}
+.right-panel::-webkit-scrollbar-thumb{background:var(--border);}
+.rpanel-title{font-size:11px;color:var(--text-dim);font-family:var(--mono);letter-spacing:2px;margin-bottom:8px;border-bottom:1px solid var(--border);padding-bottom:6px;}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.stat-box{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;}
+.stat-val{font-size:24px;font-weight:700;font-family:var(--mono);}
+.stat-val.danger{color:var(--danger)}.stat-val.warning{color:var(--warning)}.stat-val.safe{color:var(--safe)}.stat-val.accent{color:var(--accent)}
+.stat-lbl{font-size:10px;color:var(--text-dim);letter-spacing:1px;margin-top:2px;}
+.report-form{display:flex;flex-direction:column;gap:8px;}
+.select-field{background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-family:'Rajdhani',sans-serif;font-size:13px;outline:none;width:100%;transition:border-color .2s;cursor:pointer;}
+.select-field:focus{border-color:var(--accent);}
+.select-field option{background:var(--panel2);}
+.severity-select{display:flex;gap:4px;}
+.sev-btn{flex:1;padding:6px 4px;border:1px solid var(--border);border-radius:4px;background:var(--panel2);color:var(--text-dim);font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;text-align:center;}
+.sev-btn.active-low{background:rgba(0,230,118,0.2);border-color:var(--safe);color:var(--safe);}
+.sev-btn.active-med{background:rgba(255,204,0,0.2);border-color:var(--warning);color:var(--warning);}
+.sev-btn.active-high{background:rgba(255,45,45,0.2);border-color:var(--danger);color:var(--danger);}
+.submit-btn{background:linear-gradient(135deg,var(--danger),#cc0000);color:white;border:none;border-radius:6px;padding:10px;font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:700;letter-spacing:1px;cursor:pointer;transition:all .2s;}
+.submit-btn:hover{transform:translateY(-1px);box-shadow:0 4px 15px rgba(255,45,45,0.3);}
+.submit-btn:disabled{opacity:0.5;cursor:not-allowed;transform:none;}
+.sms-box{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:10px;}
+.sms-input{width:100%;background:transparent;border:none;color:var(--safe);font-family:var(--mono);font-size:11px;outline:none;resize:none;height:50px;line-height:1.5;}
+.sms-hint{font-size:10px;color:var(--text-dim);font-family:var(--mono);margin-top:4px;}
+.sms-send-btn{width:100%;margin-top:6px;background:rgba(0,230,118,0.1);border:1px solid var(--safe);color:var(--safe);border-radius:4px;padding:6px;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:600;cursor:pointer;letter-spacing:1px;transition:all .2s;}
+.sms-send-btn:hover{background:rgba(0,230,118,0.2);}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--panel);border:1px solid var(--accent);border-radius:8px;padding:10px 20px;font-size:14px;font-weight:600;z-index:9999;transition:transform .3s ease;letter-spacing:0.5px;}
+.toast.show{transform:translateX(-50%) translateY(0);}
+.toast.success{border-color:var(--safe);color:var(--safe);}
+.toast.danger-toast{border-color:var(--danger);color:var(--danger);}
+.toast.info{border-color:var(--accent);color:var(--accent);}
+.loading{text-align:center;padding:20px;color:var(--text-dim);font-family:var(--mono);font-size:12px;}
+</style>
+</head>
+<body>
+
+<div class="offline-banner" id="offlineBanner">⚡ OFFLINE MODE — Showing cached data. Backend disconnected.</div>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🗺️</div>
+    <div>
+      <div class="logo-text">LAST<span>MILE</span></div>
+      <div class="logo-sub">INDIA CRISIS NAVIGATOR</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="stat-chip">Reports: <span id="totalReports">—</span></div>
+    <div class="stat-chip">Zones: <span id="activeZones">—</span></div>
+    <div class="api-status offline" id="apiStatus">● API OFFLINE</div>
+    <div class="live-badge"><div class="live-dot"></div> LIVE</div>
+    <button class="offline-btn" onclick="toggleOfflineMode()">📵 Offline Mode</button>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- LEFT PANEL -->
+  <div class="left-panel">
+    <div class="panel-tabs">
+      <div class="tab active" onclick="switchTab('reports',this)">📋 REPORTS</div>
+      <div class="tab" onclick="switchTab('route',this)">🧭 ROUTE</div>
+      <div class="tab" onclick="switchTab('shelters',this)">🏥 SHELTERS</div>
+    </div>
+    <div class="panel-content" id="tab-reports">
+      <div class="loading" id="reportsLoading">⏳ Connecting to backend...</div>
+      <div id="reportsList"></div>
+    </div>
+    <div class="panel-content" id="tab-route" style="display:none">
+      <div class="route-form">
+        <div class="input-group">
+          <div class="input-label">FROM (ORIGIN)</div>
+          <select class="input-field" id="routeFrom">
+            <option value="">Select area...</option>
+            <option value="28.6328,77.2197,Connaught Place">Connaught Place</option>
+            <option value="28.6519,77.1909,Karol Bagh">Karol Bagh</option>
+            <option value="28.5672,77.2433,Lajpat Nagar">Lajpat Nagar</option>
+            <option value="28.7041,77.1025,Rohini">Rohini</option>
+            <option value="28.5921,77.0460,Dwarka">Dwarka</option>
+            <option value="28.6912,77.2027,GTB Nagar">GTB Nagar</option>
+            <option value="28.5679,77.3220,Noida Sec 18">Noida Sec 18</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <div class="input-label">TO (DESTINATION)</div>
+          <select class="input-field" id="routeTo">
+            <option value="">Select area...</option>
+            <option value="28.5672,77.2100,AIIMS">AIIMS</option>
+            <option value="28.5244,77.2066,Saket">Saket</option>
+            <option value="28.5491,77.2506,Nehru Place">Nehru Place</option>
+            <option value="28.6219,77.0840,Janakpuri">Janakpuri</option>
+            <option value="28.5494,77.2001,Hauz Khas">Hauz Khas</option>
+            <option value="28.5204,77.1567,Vasant Kunj">Vasant Kunj</option>
+            <option value="28.5562,77.1000,IGI Airport">IGI Airport</option>
+          </select>
+        </div>
+        <button class="route-btn" onclick="findSafeRoute()">🛡️ FIND SAFE ROUTE</button>
+        <div class="route-result" id="routeResult">
+          <h4>✅ SAFE ROUTE FOUND</h4>
+          <div id="routeSteps"></div>
+          <div class="route-meta">
+            <div class="route-meta-item">Dist: <span id="routeDist">—</span></div>
+            <div class="route-meta-item">ETA: <span id="routeETA">—</span></div>
+            <div class="route-meta-item">Risk: <span id="routeRisk">—</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="panel-content" id="tab-shelters" style="display:none">
+      <div class="loading" id="sheltersLoading">⏳ Loading shelters...</div>
+      <div id="sheltersList"></div>
+    </div>
+  </div>
+
+  <!-- MAP -->
+  <div id="map">
+    <div class="map-legend">
+      <h5>MAP LEGEND</h5>
+      <div class="legend-item"><div class="legend-dot" style="background:#ff2d2d"></div> High Danger</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ffcc00"></div> Caution</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#00e676"></div> Safe Zone</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ff6b00"></div> Shelter</div>
+    </div>
+    <div class="map-refresh" id="mapRefresh">🔄 Last updated: —</div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right-panel">
+    <div>
+      <div class="rpanel-title">📊 LIVE STATS</div>
+      <div class="stats-grid">
+        <div class="stat-box"><div class="stat-val danger" id="statDanger">—</div><div class="stat-lbl">DANGER</div></div>
+        <div class="stat-box"><div class="stat-val warning" id="statWarning">—</div><div class="stat-lbl">CAUTION</div></div>
+        <div class="stat-box"><div class="stat-val safe" id="statSafe">—</div><div class="stat-lbl">SAFE</div></div>
+        <div class="stat-box"><div class="stat-val accent" id="statShelters">—</div><div class="stat-lbl">SHELTERS</div></div>
+      </div>
+    </div>
+    <div>
+      <div class="rpanel-title">📡 SUBMIT REPORT</div>
+      <div class="report-form">
+        <select class="select-field" id="crisisType">
+          <option value="">Crisis Type...</option>
+          <option value="flood">🌊 Flood / Waterlogging</option>
+          <option value="fire">🔥 Fire</option>
+          <option value="riot">⚠️ Riot / Unrest</option>
+          <option value="accident">🚗 Road Accident</option>
+          <option value="blocked">🚧 Road Blocked</option>
+          <option value="shelter">🏥 Safe Shelter</option>
+          <option value="medical">🏥 Medical Emergency</option>
+          <option value="power">⚡ Power Outage</option>
+        </select>
+        <select class="select-field" id="crisisArea">
+          <option value="">Select Area...</option>
+          <option value="Connaught Place,28.6328,77.2197">Connaught Place</option>
+          <option value="Karol Bagh,28.6519,77.1909">Karol Bagh</option>
+          <option value="Lajpat Nagar,28.5672,77.2433">Lajpat Nagar</option>
+          <option value="Rohini,28.7041,77.1025">Rohini</option>
+          <option value="Dwarka,28.5921,77.0460">Dwarka</option>
+          <option value="GTB Nagar,28.6912,77.2027">GTB Nagar</option>
+          <option value="Shahdara,28.6719,77.2882">Shahdara</option>
+          <option value="Mayur Vihar,28.6074,77.2896">Mayur Vihar</option>
+          <option value="Noida Sec 18,28.5679,77.3220">Noida Sec 18</option>
+          <option value="Gurugram Sec 29,28.4595,77.0266">Gurugram Sec 29</option>
+        </select>
+        <div>
+          <div class="input-label" style="font-size:11px;color:var(--text-dim);font-family:var(--mono);letter-spacing:1px;margin-bottom:6px;">SEVERITY</div>
+          <div class="severity-select">
+            <button class="sev-btn" onclick="setSeverity(1,this)">LOW</button>
+            <button class="sev-btn" onclick="setSeverity(2,this)">MED</button>
+            <button class="sev-btn" onclick="setSeverity(3,this)">HIGH</button>
+          </div>
+        </div>
+        <input class="select-field" id="crisisDesc" placeholder="Description (optional)..." style="font-size:13px;">
+        <button class="submit-btn" id="submitBtn" onclick="submitReport()">🚨 SUBMIT REPORT</button>
+      </div>
+    </div>
+    <div>
+      <div class="rpanel-title">📱 SMS FALLBACK</div>
+      <div class="sms-box">
+        <textarea class="sms-input" id="smsInput" placeholder="FLOOD KAROLBAGH HIGH&#10;BLOCKED ROHINI MED&#10;FIRE SHAHDARA HIGH"></textarea>
+        <div class="sms-hint">Format: TYPE AREA SEVERITY</div>
+        <button class="sms-send-btn" onclick="processSMS()">📤 SEND SMS REPORT</button>
+      </div>
+    </div>
+    <div>
+      <div class="rpanel-title">ℹ️ HOW TO USE</div>
+      <div style="font-size:12px;color:var(--text-dim);line-height:1.8;">
+        1. View live heatmap on map<br>
+        2. Submit crisis reports<br>
+        3. Use Route tab for safe path<br>
+        4. SMS works without internet<br>
+        5. Auto-refreshes every 30s
+      </div>
+    </div>
+    <div>
+      <div class="rpanel-title">🔧 BACKEND</div>
+      <div style="font-size:11px;color:var(--text-dim);font-family:var(--mono);line-height:1.8;">
+        API: <span style="color:var(--accent2)" id="apiUrl">render.com</span><br>
+        DB: SQLite (lastmile.db)<br>
+        SMS: Twilio webhook<br>
+        <span style="color:var(--text-dim)">Run: python app.py</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── CONFIG ───────────────────────────────────────────────
+const API_BASE = '/api';
+const CRISIS_LABELS = {
+  flood:'🌊 Flood', fire:'🔥 Fire', riot:'⚠️ Riot',
+  accident:'🚗 Accident', blocked:'🚧 Blocked',
+  shelter:'🏥 Shelter', medical:'🏥 Medical', power:'⚡ Power Out'
+};
+
+// ── STATE ────────────────────────────────────────────────
+let map, heatLayer, routeLine, markers=[], shelterMarkers=[];
+let selectedSeverity=0, isOfflineMode=false, apiOnline=false;
+let cachedReports=[], cachedShelters=[];
+
+// ── MAP INIT ─────────────────────────────────────────────
+function initMap() {
+  map = L.map('map',{zoomControl:true,attributionControl:false}).setView([28.6139,77.2090],11);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:18}).addTo(map);
+  heatLayer = L.heatLayer([],{radius:35,blur:25,maxZoom:13,
+    gradient:{0.2:'#ffcc00',0.5:'#ff6b00',0.8:'#ff2d2d',1.0:'#8b0000'}
+  }).addTo(map);
+}
+
+// ── API CALLS ────────────────────────────────────────────
+async function apiFetch(endpoint, options={}) {
+  try {
+    const res = await fetch(API_BASE + endpoint, {
+      headers: {'Content-Type':'application/json'},
+      ...options
+    });
+    const data = await res.json();
+    setApiStatus(true);
+    return data;
+  } catch(e) {
+    setApiStatus(false);
+    return null;
+  }
+}
+
+function setApiStatus(online) {
+  apiOnline = online;
+  const el = document.getElementById('apiStatus');
+  el.textContent = online ? '● API ONLINE' : '● API OFFLINE';
+  el.className = 'api-status ' + (online ? 'online' : 'offline');
+}
+
+// ── LOAD REPORTS ─────────────────────────────────────────
+async function loadReports() {
+  document.getElementById('reportsLoading').style.display = 'block';
+  const data = await apiFetch('/reports');
+  if (data && data.success) {
+    cachedReports = data.reports;
+    renderReports(data.reports);
+    updateHeatmap(data.reports);
+    addReportMarkers(data.reports);
+  } else {
+    document.getElementById('reportsLoading').textContent = '❌ Backend offline. Run: python app.py';
+  }
+  document.getElementById('reportsLoading').style.display = cachedReports.length ? 'none' : 'block';
+}
+
+// ── LOAD STATS ───────────────────────────────────────────
+async function loadStats() {
+  const data = await apiFetch('/stats');
+  if (data && data.success) {
+    document.getElementById('statDanger').textContent  = data.danger;
+    document.getElementById('statWarning').textContent = data.warning;
+    document.getElementById('statSafe').textContent    = data.safe;
+    document.getElementById('statShelters').textContent= data.shelters;
+    document.getElementById('totalReports').textContent= data.total;
+    document.getElementById('activeZones').textContent = data.zones;
+  }
+}
+
+// ── LOAD SHELTERS ─────────────────────────────────────────
+async function loadShelters() {
+  document.getElementById('sheltersLoading').style.display = 'block';
+  const data = await apiFetch('/shelters');
+  if (data && data.success) {
+    cachedShelters = data.shelters;
+    renderShelters(data.shelters);
+    addShelterMarkers(data.shelters);
+    document.getElementById('sheltersLoading').style.display = 'none';
+  }
+}
+
+// ── RENDER REPORTS ────────────────────────────────────────
+function renderReports(reports) {
+  document.getElementById('reportsList').innerHTML = reports.slice(0,25).map(r => {
+    const c = r.level==='danger'?'#ff2d2d':r.level==='warning'?'#ffcc00':'#00e676';
+    const w = r.severity===3?'100%':r.severity===2?'66%':'33%';
+    const label = CRISIS_LABELS[r.crisis_type] || r.crisis_type;
+    return `<div class="report-card ${r.level}" onclick="map.flyTo([${r.lat},${r.lng}],14,{duration:1.2})">
+      <div class="report-header">
+        <div class="report-type ${r.level}">${label}</div>
+        <div class="report-time">${r.timestamp}</div>
+      </div>
+      <div class="report-area">📍 ${r.area_name}</div>
+      <div class="report-desc">${r.description||'No description'}</div>
+      <div class="severity-bar"><div class="severity-fill" style="width:${w};background:${c}"></div></div>
+      <span class="source-badge ${r.source}">${r.source.toUpperCase()}</span>
+    </div>`;
+  }).join('');
+}
+
+// ── RENDER SHELTERS ──────────────────────────────────────
+function renderShelters(shelters) {
+  document.getElementById('sheltersList').innerHTML = shelters.map(s => {
+    const barColor = s.pct>=90?'#ff2d2d':s.pct>=60?'#ffcc00':'#00e676';
+    const statusClass = s.status.toLowerCase();
+    return `<div class="shelter-card" onclick="map.flyTo([${s.lat},${s.lng}],14)">
+      <div class="shelter-name">🏥 ${s.name}</div>
+      <div class="shelter-meta">
+        <span class="shelter-tag ${statusClass}">${s.status}</span>
+        <span class="shelter-tag cap">${s.occupancy}/${s.capacity}</span>
+        <span class="shelter-tag loc">📍 ${s.area}</span>
+      </div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;font-family:var(--mono)">📞 ${s.contact||'N/A'}</div>
+      <div class="capacity-bar"><div class="capacity-fill" style="width:${s.pct}%;background:${barColor}"></div></div>
+    </div>`;
+  }).join('');
+}
+
+// ── HEATMAP ──────────────────────────────────────────────
+function updateHeatmap(reports) {
+  const pts = reports.filter(r=>r.level!=='safe').map(r=>[r.lat, r.lng, r.severity/3]);
+  heatLayer.setLatLngs(pts);
+  document.getElementById('mapRefresh').textContent = '🔄 Updated: ' + new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+}
+
+// ── MARKERS ──────────────────────────────────────────────
+function addReportMarkers(reports) {
+  markers.forEach(m=>map.removeLayer(m));
+  markers=[];
+  reports.slice(0,40).forEach(r => {
+    const c = r.level==='danger'?'#ff2d2d':r.level==='warning'?'#ffcc00':'#00e676';
+    const label = CRISIS_LABELS[r.crisis_type]?.split(' ')[0]||'⚠️';
+    const icon = L.divIcon({
+      html:`<div style="background:${c};border-radius:50% 50% 50% 0;width:20px;height:20px;transform:rotate(-45deg);border:2px solid #fff;box-shadow:0 0 10px ${c}55;display:flex;align-items:center;justify-content:center"><span style="transform:rotate(45deg);font-size:8px">${label}</span></div>`,
+      className:'',iconSize:[20,20],iconAnchor:[10,20]
+    });
+    const m = L.marker([r.lat,r.lng],{icon})
+      .bindPopup(`<div style="background:#0d1117;color:#dce8f0;padding:10px;border-radius:6px;min-width:180px;font-family:Rajdhani,sans-serif">
+        <strong style="color:${c};font-size:15px">${CRISIS_LABELS[r.crisis_type]||r.crisis_type}</strong><br>
+        <span>📍 ${r.area_name}</span><br>
+        <span style="font-size:12px;color:#4a6a8a">${r.description||''}</span><br>
+        <span style="font-size:11px;color:#4a6a8a;font-family:monospace">${r.timestamp} · via ${r.source.toUpperCase()}</span>
+      </div>`)
+      .addTo(map);
+    markers.push(m);
+  });
+}
+
+function addShelterMarkers(shelters) {
+  shelterMarkers.forEach(m=>map.removeLayer(m));
+  shelterMarkers=[];
+  const icon=L.divIcon({html:'<div style="background:#ff6b00;color:#000;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:13px;border:2px solid #fff;box-shadow:0 0 8px rgba(255,107,0,0.5)">🏥</div>',className:'',iconSize:[24,24],iconAnchor:[12,12]});
+  shelters.forEach(s=>{
+    const m=L.marker([s.lat,s.lng],{icon})
+      .bindPopup(`<div style="background:#0d1117;color:#dce8f0;padding:10px;border-radius:6px;min-width:180px;font-family:Rajdhani,sans-serif">
+        <strong style="font-size:15px">${s.name}</strong><br>
+        <span style="color:#4a6a8a;font-size:12px">📍 ${s.area}</span><br>
+        <span style="font-size:12px">📞 ${s.contact||'N/A'}</span><br>
+        <div style="background:#1a2535;border-radius:4px;height:6px;margin:6px 0"><div style="background:${s.pct>=90?'#ff2d2d':s.pct>=60?'#ffcc00':'#00e676'};width:${s.pct}%;height:100%;border-radius:4px"></div></div>
+        <span style="font-size:12px;color:#4a6a8a">${s.occupancy}/${s.capacity} capacity</span>
+      </div>`)
+      .addTo(map);
+    shelterMarkers.push(m);
+  });
+}
+
+// ── SUBMIT REPORT ────────────────────────────────────────
+async function submitReport() {
+  const type = document.getElementById('crisisType').value;
+  const areaVal = document.getElementById('crisisArea').value;
+  const desc = document.getElementById('crisisDesc').value;
+  if (!type||!areaVal||!selectedSeverity) { showToast('⚠️ Fill all fields & select severity','danger-toast'); return; }
+
+  const [areaName, lat, lng] = areaVal.split(',');
+  const btn = document.getElementById('submitBtn');
+  btn.disabled=true; btn.textContent='Submitting...';
+
+  const jitter = ()=>(Math.random()-0.5)*0.012;
+  const data = await apiFetch('/reports',{
+    method:'POST',
+    body: JSON.stringify({
+      crisis_type: type, area_name: areaName,
+      lat: parseFloat(lat)+jitter(), lng: parseFloat(lng)+jitter(),
+      severity: selectedSeverity,
+      description: desc || `${CRISIS_LABELS[type]} reported at ${areaName}`,
+      source: 'app'
+    })
+  });
+
+  btn.disabled=false; btn.textContent='🚨 SUBMIT REPORT';
+  if (data && data.success) {
+    showToast(`✅ Report submitted: ${CRISIS_LABELS[type]} at ${areaName}`,'success');
+    document.getElementById('crisisType').value='';
+    document.getElementById('crisisArea').value='';
+    document.getElementById('crisisDesc').value='';
+    selectedSeverity=0;
+    document.querySelectorAll('.sev-btn').forEach(b=>b.className='sev-btn');
+    await refreshAll();
+  } else {
+    showToast('❌ Backend offline. Run: python app.py','danger-toast');
+  }
+}
+
+// ── SMS PROCESS ──────────────────────────────────────────
+async function processSMS() {
+  const text = document.getElementById('smsInput').value.trim();
+  if (!text) { showToast('⚠️ Enter SMS text','danger-toast'); return; }
+  const data = await apiFetch('/sms',{method:'POST',body:JSON.stringify({Body:text})});
+  if (data && data.success) {
+    showToast('📱 SMS report processed!','success');
+    document.getElementById('smsInput').value='';
+    await refreshAll();
+  } else {
+    showToast('❌ '+(data?.error||'Backend offline'),'danger-toast');
+  }
+}
+
+// ── SAFE ROUTE ────────────────────────────────────────────
+async function findSafeRoute() {
+  const fromVal = document.getElementById('routeFrom').value;
+  const toVal   = document.getElementById('routeTo').value;
+  if (!fromVal||!toVal) { showToast('⚠️ Select origin & destination','danger-toast'); return; }
+
+  const [fLat,fLng,fName] = fromVal.split(',');
+  const [tLat,tLng,tName] = toVal.split(',');
+
+  const data = await apiFetch('/route',{
+    method:'POST',
+    body: JSON.stringify({from_lat:fLat,from_lng:fLng,to_lat:tLat,to_lng:tLng,from_name:fName,to_name:tName})
+  });
+
+  if (data && data.success) {
+    const route = data.route;
+    if (routeLine) map.removeLayer(routeLine);
+    routeLine = L.polyline(route.waypoints,{color:'#00e676',weight:4,opacity:0.85,dashArray:'10,8'}).addTo(map);
+    map.fitBounds(routeLine.getBounds(),{padding:[40,40]});
+    L.marker([fLat,fLng],{icon:L.divIcon({html:'<div style="background:#00e676;color:#000;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:700">START</div>',className:''})}).addTo(map);
+    L.marker([tLat,tLng],{icon:L.divIcon({html:'<div style="background:#ff6b00;color:#000;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:700">END</div>',className:''})}).addTo(map);
+    document.getElementById('routeSteps').innerHTML = route.steps.map((s,i)=>`<div class="route-step"><div class="step-num">${i+1}</div><div>${s}</div></div>`).join('');
+    document.getElementById('routeDist').textContent = route.distance_km+' km';
+    document.getElementById('routeETA').textContent  = route.eta_mins+' mins';
+    document.getElementById('routeRisk').textContent = route.risk_level;
+    document.getElementById('routeResult').classList.add('show');
+    showToast(`🛡️ Safe route: ${route.distance_km}km, ~${route.eta_mins} mins`,'success');
+  } else {
+    showToast('❌ Backend offline. Run: python app.py','danger-toast');
+  }
+}
+
+// ── HELPERS ───────────────────────────────────────────────
+function setSeverity(val,btn){
+  selectedSeverity=val;
+  document.querySelectorAll('.sev-btn').forEach(b=>b.className='sev-btn');
+  btn.classList.add(val===1?'active-low':val===2?'active-med':'active-high');
+}
+
+function switchTab(name,el){
+  document.querySelectorAll('.panel-content').forEach(c=>c.style.display='none');
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+name).style.display='block';
+  el.classList.add('active');
+  if(name==='shelters'&&cachedShelters.length===0) loadShelters();
+}
+
+function toggleOfflineMode(){
+  isOfflineMode=!isOfflineMode;
+  document.getElementById('offlineBanner').classList.toggle('show',isOfflineMode);
+  document.querySelector('.offline-btn').textContent=isOfflineMode?'📶 Go Online':'📵 Offline Mode';
+  showToast(isOfflineMode?'📵 Offline mode — cached data shown':'📶 Back online — refreshing...', isOfflineMode?'danger-toast':'success');
+  if(!isOfflineMode) refreshAll();
+}
+
+function showToast(msg,type='info'){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className=`toast ${type} show`;
+  clearTimeout(t._timer); t._timer=setTimeout(()=>t.classList.remove('show'),3500);
+}
+
+async function refreshAll(){
+  if(isOfflineMode) return;
+  await Promise.all([loadReports(), loadStats()]);
+}
+
+// ── START ─────────────────────────────────────────────────
+initMap();
+refreshAll();
+loadShelters();
+setInterval(refreshAll, 30000); // auto-refresh every 30 seconds
+</script>
+</body>
+</html>
